@@ -19,3 +19,6 @@ test('Coverage matrix evidence 2',async({page})=>{await page.goto('/wards/WARD-I
 
 
 test('Escalation workbench restores and recovers domain state',async({page})=>{await page.goto('/wards/ICU/roster/2026-09-20/escalations?shift=night&focus=RN-104');await expect(page.getByRole('heading',{name:"Ward staffing escalation workbench",exact:true})).toBeVisible();await page.getByLabel('Authority').selectOption("clinical lead");await page.getByRole('button',{name:'Run domain bulk action'}).click();await expect(page.getByRole('status')).toContainText('1 succeeded; 1 require recovery');await expect(page.getByRole('button',{name:'Retry failed records'})).toBeVisible()});
+
+
+test('Transfer planner restores a feasible decision',async({page})=>{await page.goto('/wards/ICU/transfers/HDU?patients=3');await expect(page.getByRole('heading',{name:"Ward transfer coverage planner",exact:true})).toBeVisible();await expect(page.getByRole('region',{name:'Scenario result'})).toContainText(/Feasible|Blocked/);await expect(page.getByText("patient acuity",{exact:false}).first()).toBeVisible()});
