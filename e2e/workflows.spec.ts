@@ -16,3 +16,6 @@ test('retains keyboard-visible product navigation',async({page})=>{await page.go
 test('Coverage matrix deep workflow',async({page})=>{await page.goto('/wards/WARD-ICU/coverage/2026-09-14');await expect(page.getByRole('heading',{name:'Ward staffing coverage matrix',exact:true})).toBeVisible();await expect(page.getByText('WARD-ICU',{exact:false}).first()).toBeVisible()});
 test('Coverage matrix evidence 1',async({page})=>{await page.goto('/wards/WARD-ICU/coverage/2026-09-14');await expect(page.getByText('Night shift',{exact:false}).first()).toBeVisible()});
 test('Coverage matrix evidence 2',async({page})=>{await page.goto('/wards/WARD-ICU/coverage/2026-09-14');await expect(page.getByText('Critical care RN',{exact:false}).first()).toBeVisible()});
+
+
+test('Escalation workbench restores and recovers domain state',async({page})=>{await page.goto('/wards/ICU/roster/2026-09-20/escalations?shift=night&focus=RN-104');await expect(page.getByRole('heading',{name:"Ward staffing escalation workbench",exact:true})).toBeVisible();await page.getByLabel('Authority').selectOption("clinical lead");await page.getByRole('button',{name:'Run domain bulk action'}).click();await expect(page.getByRole('status')).toContainText('1 succeeded; 1 require recovery');await expect(page.getByRole('button',{name:'Retry failed records'})).toBeVisible()});
