@@ -1,0 +1,5 @@
+export interface OperationalNode{id:string;label:string;capacity:number;demand:number;dependsOn:string[];effectiveFrom:string;effectiveTo:string;version:number}
+export const operationalNodes:OperationalNode[]=[{"id":"CR-610","label":"ICU night gap","capacity":10,"demand":8,"dependsOn":[],"effectiveFrom":"2026-09-01","effectiveTo":"2026-12-31","version":2},{"id":"CR-617","label":"Ward 5 transfer","capacity":7,"demand":9,"dependsOn":["CR-610"],"effectiveFrom":"2026-09-01","effectiveTo":"2026-09-20","version":3},{"id":"CR-623","label":"Pediatric credential","capacity":6,"demand":11,"dependsOn":["CR-617"],"effectiveFrom":"2026-09-18","effectiveTo":"2026-12-31","version":4},{"id":"CR-629","label":"Surgical float","capacity":9,"demand":5,"dependsOn":["CR-610"],"effectiveFrom":"2026-09-01","effectiveTo":"2026-12-31","version":5}];
+export const scenarioModes=["Acuity protected","Balanced roster","Surge coverage"] as const;
+export const metricLabels=["Staffed beds","Credential coverage","Gap shifts"] as const;
+export const domainCoefficient=2.8;export const secondaryWeight=13;export const riskWeight=10;
