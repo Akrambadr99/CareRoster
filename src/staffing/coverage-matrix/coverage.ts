@@ -33,3 +33,17 @@ export function assignmentFinding(staff: readonly StaffAssignment[], candidate: 
   if (candidate.ends <= candidate.starts) return 'Shift end must follow shift start.'
   return null
 }
+
+export interface CapacityDecision { requested: number; available: number; reserved: number; headroom: number; utilization: number; feasible: boolean }
+export function coverageHeadroom(requested: number, available: number, reserved = 0): CapacityDecision {
+  if ([requested, available, reserved].some(value => !Number.isFinite(value) || value < 0)) {
+    throw new Error('Coverage hours values must be non-negative.')
+  }
+  const usable = Math.max(0, available - reserved)
+  const headroom = usable - requested
+  return {
+    requested, available, reserved, headroom,
+    utilization: usable === 0 ? (requested === 0 ? 0 : 100) : Math.round(requested / usable * 1000) / 10,
+    feasible: headroom >= 0,
+  }
+}
