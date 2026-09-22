@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { assignmentFinding, candidateAssignments, coverageAt, coverageGaps, requirements } from './coverage'
 import type { StaffAssignment } from './coverage'
 import { assignStaff, changeCredential, readShiftLedger, removeStaff, saveShiftLedger, transferBlockers } from './shiftLedger'
+import { careCoordinators, careWorkInbox, claimCredentialWork } from './clinicalWorkload'
 function requireDefaultCandidate(): StaffAssignment {
   const candidate = candidateAssignments.find(item => item.id === 'RN-4')
   if (!candidate) throw new Error('Coverage candidates are unavailable.')
@@ -16,6 +17,7 @@ export function WardCoverageMatrixPage() {
   const staff = shift.staff
   const [selectedId, setSelectedId] = useState(defaultCandidate.id)
   const [notice, setNotice] = useState('')
+  const [specialistId, setSpecialistId] = useState('cred-jo')
   const candidate = candidateAssignments.find(item => item.id === selectedId) ?? defaultCandidate
   const finding = assignmentFinding(staff, candidate, shiftDate)
   const gaps = coverageGaps(staff, shiftDate)
@@ -29,7 +31,7 @@ export function WardCoverageMatrixPage() {
     catch (error) { setNotice(error instanceof Error ? error.message : 'Removal failed.') }
   }
   function reviewCredential(id: string, until: string) {
-    try { setShift(saveShiftLedger(window.localStorage, changeCredential(shift, id, until))); setNotice(`${id} credential reviewed; transfer eligibility recalculated.`) }
+    try { setShift(saveShiftLedger(window.localStorage, changeCredential(shift, id, until, specialistId))); setNotice(`${id} credential reviewed; transfer eligibility recalculated.`) }
     catch (error) { setNotice(error instanceof Error ? error.message : 'Credential review failed.') }
   }
   return <div className="suite-page">
@@ -60,6 +62,20 @@ export function WardCoverageMatrixPage() {
         </option>)}</select></label>
       {finding && <p>{finding}</p>}
       <button disabled={Boolean(finding)} onClick={assign}>Assign to shift</button>
+      <label>Credential specialist <select value={specialistId} onChange={event => { setSpecialistId(event.target.value) }}>
+        {careCoordinators.filter(item => item.role === 'credential specialist').map(item =>
+          <option key={item.id} value={item.id}>{item.name}</option>)}
+      </select></label>
+      <div aria-label="Credential exception inbox">
+        <h3>Credential exceptions</h3>
+        {careWorkInbox([{ shiftId: 'WARD-ICU-NIGHT', ward: 'ICU', ledger: shift }]).filter(item =>
+          item.kind === 'credential').map(item => <p key={item.id}>{item.staffId} · {item.assigneeId ?? 'unclaimed'}
+          <button onClick={() => { try {
+            const record = { shiftId: 'WARD-ICU-NIGHT', ward: 'ICU', ledger: shift }
+            setShift(saveShiftLedger(window.localStorage, claimCredentialWork(record, item.staffId ?? '', specialistId, [record])))
+            setNotice('Credential exception claimed.')
+          } catch (error) { setNotice(error instanceof Error ? error.message : 'Claim failed.') } }}>Claim exception</button></p>)}
+      </div>
       <p role="status">{notice}</p>
       <details><summary>Assigned staff and breaks</summary>
         <ul>{staff.map(person => <li key={person.id}>{person.name} · {person.skill} · break {person.breakStart}:00–{person.breakEnd}:00

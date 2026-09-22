@@ -9,6 +9,7 @@ export interface ShiftLedger {
   rosterOwner: string
   transferReviewer: string | null
   transferReviews?: readonly TransferReview[] | undefined
+  credentialWork?: readonly CredentialWork[] | undefined
   revision: number
   history: readonly { revision: number; action: string; staffId: string; actor?: string }[]
 }
@@ -17,13 +18,21 @@ export interface TransferReview {
   sourceRevision: number
   requestedBy: string
   assignee: string
+  assigneeId?: string | null
   status: 'open' | 'stale' | 'completed' | 'superseded'
   supersedesId?: string
   outcome?: 'approved' | 'changes_requested'
   reason?: string
 }
+export interface CredentialWork {
+  id: string
+  staffId: string
+  sourceRevision: number
+  assigneeId: string | null
+  status: 'open' | 'completed'
+}
 const key = 'careroster:ward-icu:night:2026-09-14:v1'
-export const initialShiftLedger: ShiftLedger = { staff: assignments, transferApproved: false, transferSourceRevision: null, rosterOwner: 'roster coordinator', transferReviewer: null, transferReviews: [], revision: 0, history: [] }
+export const initialShiftLedger: ShiftLedger = { staff: assignments, transferApproved: false, transferSourceRevision: null, rosterOwner: 'roster coordinator', transferReviewer: null, transferReviews: [], credentialWork: [], revision: 0, history: [] }
 export function readShiftLedger(storage: StoragePort): ShiftLedger {
   const raw = storage.getItem(key)
   if (!raw) return initialShiftLedger
@@ -34,7 +43,7 @@ export function readShiftLedger(storage: StoragePort): ShiftLedger {
     !('history' in value) || !Array.isArray(value.history)) throw new Error('Invalid ward-shift record.')
   const record = value as Omit<ShiftLedger, 'rosterOwner' | 'transferReviewer'> & Partial<Pick<ShiftLedger, 'rosterOwner' | 'transferReviewer'>>
   return { ...record, transferSourceRevision: record.transferSourceRevision ?? null, rosterOwner: record.rosterOwner ?? 'roster coordinator', transferReviewer: record.transferReviewer ?? null,
-    transferReviews: record.transferReviews ?? [] }
+    transferReviews: record.transferReviews ?? [], credentialWork: record.credentialWork ?? [] }
 }
 export function clinicalInbox(state: ShiftLedger, actor: string): TransferReview[] {
   return (state.transferReviews ?? []).filter(item => item.assignee === actor && item.status === 'open')
@@ -46,7 +55,7 @@ export function requestTransferReview(state: ShiftLedger, actor: string, assigne
   const revision = state.revision + 1
   const previous = [...(state.transferReviews ?? [])].reverse().find(item => item.status === 'stale')
   const review: TransferReview = { id: `TRANSFER-${String(revision)}`, sourceRevision: revision, requestedBy: actor, assignee,
-    status: 'open', ...(previous ? { supersedesId: previous.id } : {}) }
+    assigneeId: null, status: 'open', ...(previous ? { supersedesId: previous.id } : {}) }
   return { ...state, revision, transferReviews: [...(state.transferReviews ?? []).map(item => item.id === previous?.id ?
     { ...item, status: 'superseded' as const } : item), review],
     history: [...state.history, { revision, action: 'transfer-review-requested', staffId: 'WARD-ICU', actor }] }
@@ -79,23 +88,33 @@ export function assignStaff(state: ShiftLedger, candidate: StaffAssignment, date
     item.status === 'open' ? { ...item, status: 'stale' as const } : item),
     history: [...state.history, { revision, action: 'assigned', staffId: candidate.id }] }
 }
-export function approveTransfer(state: ShiftLedger, actor: string, date = '2026-09-14'): ShiftLedger {
+export function approveTransfer(state: ShiftLedger, actor: string, date = '2026-09-14', reviewerId?: string): ShiftLedger {
   const policy = transferReviewPolicy(state, actor, date)
   if (!policy.allowed) throw new Error(policy.blockers[0])
   if (state.transferApproved) throw new Error('Transfer coverage is already approved.')
   if (state.transferReviews?.length && !clinicalInbox(state, actor).some(item => item.sourceRevision === state.revision))
     throw new Error('A current clinical review must be assigned to this lead.')
+  if (state.transferReviews?.some(item => item.status === 'open' && item.assigneeId &&
+    item.assigneeId !== reviewerId)) throw new Error('Transfer review belongs to another named clinical lead.')
   const revision = state.revision + 1
   return { ...state, revision, transferApproved: true, transferSourceRevision: revision, transferReviewer: actor,
     transferReviews: state.transferReviews?.map(item => item.status === 'open' ?
       { ...item, status: 'completed' as const, outcome: 'approved' as const } : item),
     history: [...state.history, { revision, action: 'transfer-approved', staffId: 'WARD-ICU', actor }] }
 }
-export function changeCredential(state: ShiftLedger, id: string, until: string): ShiftLedger {
+export function changeCredential(state: ShiftLedger, id: string, until: string, specialistId?: string): ShiftLedger {
   if (!state.staff.some(person => person.id === id)) throw new Error('Staff member is not assigned.')
   const revision = state.revision + 1
+  const existing = (state.credentialWork ?? []).find(item => item.staffId === id && item.status === 'open')
+  if (existing?.assigneeId && existing.assigneeId !== specialistId) throw new Error('Credential exception belongs to another named specialist.')
+  const expired = until < '2026-09-14'
+  const credentialWork: CredentialWork[] = [...(state.credentialWork ?? []).map(item => item.id === existing?.id ?
+    expired ? { ...item, sourceRevision: revision, assigneeId: null } : { ...item, status: 'completed' as const } : item)]
+  if (expired && !existing) credentialWork.push({ id: `CREDENTIAL-${id}-${String(revision)}`, staffId: id,
+    sourceRevision: revision, assigneeId: null, status: 'open' })
   return { ...state, revision, staff: state.staff.map(person => person.id === id ? { ...person, credentialUntil: until } : person),
     transferReviews: state.transferReviews?.map(item => item.status === 'open' ? { ...item, status: 'stale' as const } : item),
+    credentialWork,
     history: [...state.history, { revision, action: 'credential-reviewed', staffId: id }] }
 }
 export function revalidateTransfer(state: ShiftLedger, actor: string, date = '2026-09-14'): ShiftLedger {
