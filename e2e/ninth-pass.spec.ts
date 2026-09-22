@@ -1,0 +1,20 @@
+import { expect, test } from '@playwright/test'
+
+test('qualified roster additions enable transfer and protect assignment removal', async ({ page }) => {
+  await page.goto('/wards/ICU/transfers/HDU?patients=1')
+  await page.getByLabel('Decision authority').selectOption('clinical lead')
+  await expect(page.getByRole('button', { name: 'Approve transfer coverage' })).toBeDisabled()
+  await page.goto('/wards/WARD-ICU/coverage/2026-09-14')
+  await page.getByRole('button', { name: 'Assign to shift' }).click()
+  await page.getByLabel('Candidate').selectOption('RN-6')
+  await page.getByRole('button', { name: 'Assign to shift' }).click()
+  await expect(page.getByText('0 uncovered role-hour(s).')).toBeVisible()
+  await page.goto('/wards/ICU/transfers/HDU?patients=1')
+  await page.getByLabel('Decision authority').selectOption('clinical lead')
+  await page.getByRole('button', { name: 'Approve transfer coverage' }).click()
+  await expect(page.getByText('Transfer coverage approved')).toBeVisible()
+  await page.goto('/wards/WARD-ICU/coverage/2026-09-14')
+  await page.getByText('Assigned staff and breaks').click()
+  await page.getByRole('button', { name: 'Remove RN-4' }).click()
+  await expect(page.getByRole('status')).toContainText('Approved transfer depends')
+})

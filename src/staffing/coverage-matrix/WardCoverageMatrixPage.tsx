@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { assignmentFinding, assignments, candidateAssignments, coverageAt, coverageGaps, requirements } from './coverage'
+import { assignmentFinding, candidateAssignments, coverageAt, coverageGaps, requirements } from './coverage'
 import type { StaffAssignment } from './coverage'
+import { assignStaff, readShiftLedger, removeStaff, saveShiftLedger } from './shiftLedger'
 function requireDefaultCandidate(): StaffAssignment {
   const candidate = candidateAssignments.find(item => item.id === 'RN-4')
   if (!candidate) throw new Error('Coverage candidates are unavailable.')
@@ -11,7 +12,8 @@ const defaultCandidate = requireDefaultCandidate()
 export function WardCoverageMatrixPage() {
   const { ward, date } = useParams()
   const shiftDate = date ?? '2026-09-14'
-  const [staff, setStaff] = useState<readonly StaffAssignment[]>(assignments)
+  const [shift, setShift] = useState(() => readShiftLedger(window.localStorage))
+  const staff = shift.staff
   const [selectedId, setSelectedId] = useState(defaultCandidate.id)
   const [notice, setNotice] = useState('')
   const candidate = candidateAssignments.find(item => item.id === selectedId) ?? defaultCandidate
@@ -19,8 +21,12 @@ export function WardCoverageMatrixPage() {
   const gaps = coverageGaps(staff, shiftDate)
   function assign() {
     if (finding) { setNotice(finding); return }
-    setStaff(current => [...current, candidate])
+    setShift(saveShiftLedger(window.localStorage, assignStaff(shift, candidate, shiftDate)))
     setNotice(`${candidate.name} added to the Night shift.`)
+  }
+  function remove(id: string) {
+    try { setShift(saveShiftLedger(window.localStorage, removeStaff(shift, id))); setNotice(`${id} removed from shift.`) }
+    catch (error) { setNotice(error instanceof Error ? error.message : 'Removal failed.') }
   }
   return <div className="suite-page">
     <header className="suite-title"><div><small>WARD / SKILL-MIX COVERAGE</small>
@@ -36,6 +42,7 @@ export function WardCoverageMatrixPage() {
             {coverageAt(staff, rule.skill, hour, shiftDate)}
           </td>)}</tr>)}</tbody></table>
       <p>{gaps.length} uncovered role-hour(s).</p>
+      <p>Roster revision {shift.revision} · Transfer coverage {shift.transferApproved ? 'approved' : 'pending'}</p>
       {gaps.length > 0 && <ul>{gaps.map(gap => <li key={gap.skill + String(gap.hour)}>
         {gap.skill} at {gap.hour}:00: {gap.assigned}/{gap.required}
       </li>)}</ul>}
@@ -50,7 +57,9 @@ export function WardCoverageMatrixPage() {
       <button disabled={Boolean(finding)} onClick={assign}>Assign to shift</button>
       <p role="status">{notice}</p>
       <details><summary>Assigned staff and breaks</summary>
-        <ul>{staff.map(person => <li key={person.id}>{person.name} · {person.skill} · break {person.breakStart}:00–{person.breakEnd}:00</li>)}</ul>
+        <ul>{staff.map(person => <li key={person.id}>{person.name} · {person.skill} · break {person.breakStart}:00–{person.breakEnd}:00
+          {candidateAssignments.some(item => item.id === person.id) && <button onClick={() => { remove(person.id) }}>Remove {person.id}</button>}
+        </li>)}</ul>
       </details>
     </section>
   </div>

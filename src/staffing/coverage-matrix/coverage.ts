@@ -14,6 +14,7 @@ export const assignments: readonly StaffAssignment[] = [
 export const candidateAssignments: readonly StaffAssignment[] = [
   { id: 'RN-4', name: 'E. Flores', skill: 'Critical care RN', starts: 19, ends: 23, breakStart: 20, breakEnd: 20, credentialUntil: '2026-12-31' },
   { id: 'RN-5', name: 'F. Jones', skill: 'Critical care RN', starts: 19, ends: 23, breakStart: 20, breakEnd: 20, credentialUntil: '2026-09-13' },
+  { id: 'RN-6', name: 'H. Morgan', skill: 'Critical care RN', starts: 19, ends: 23, breakStart: 20, breakEnd: 20, credentialUntil: '2026-12-31' },
   { id: 'RT-2', name: 'G. Patel', skill: 'Respiratory therapist', starts: 19, ends: 23, breakStart: 20, breakEnd: 20, credentialUntil: '2026-12-31' },
 ]
 export function coverageAt(staff: readonly StaffAssignment[], skill: Skill, hour: number, date: string): number {
