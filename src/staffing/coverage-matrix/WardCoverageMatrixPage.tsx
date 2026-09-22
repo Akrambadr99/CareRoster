@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { assignmentFinding, candidateAssignments, coverageAt, coverageGaps, requirements } from './coverage'
 import type { StaffAssignment } from './coverage'
-import { assignStaff, readShiftLedger, removeStaff, saveShiftLedger } from './shiftLedger'
+import { assignStaff, changeCredential, readShiftLedger, removeStaff, saveShiftLedger, transferBlockers } from './shiftLedger'
 function requireDefaultCandidate(): StaffAssignment {
   const candidate = candidateAssignments.find(item => item.id === 'RN-4')
   if (!candidate) throw new Error('Coverage candidates are unavailable.')
@@ -28,6 +28,10 @@ export function WardCoverageMatrixPage() {
     try { setShift(saveShiftLedger(window.localStorage, removeStaff(shift, id))); setNotice(`${id} removed from shift.`) }
     catch (error) { setNotice(error instanceof Error ? error.message : 'Removal failed.') }
   }
+  function reviewCredential(id: string, until: string) {
+    try { setShift(saveShiftLedger(window.localStorage, changeCredential(shift, id, until))); setNotice(`${id} credential reviewed; transfer eligibility recalculated.`) }
+    catch (error) { setNotice(error instanceof Error ? error.message : 'Credential review failed.') }
+  }
   return <div className="suite-page">
     <header className="suite-title"><div><small>WARD / SKILL-MIX COVERAGE</small>
       <h1>Ward staffing coverage matrix</h1>
@@ -43,6 +47,7 @@ export function WardCoverageMatrixPage() {
           </td>)}</tr>)}</tbody></table>
       <p>{gaps.length} uncovered role-hour(s).</p>
       <p>Roster revision {shift.revision} · Transfer coverage {shift.transferApproved ? 'approved' : 'pending'}</p>
+      {transferBlockers(shift, shiftDate).map(item => <p role="alert" key={item}>{item}</p>)}
       {gaps.length > 0 && <ul>{gaps.map(gap => <li key={gap.skill + String(gap.hour)}>
         {gap.skill} at {gap.hour}:00: {gap.assigned}/{gap.required}
       </li>)}</ul>}
@@ -59,6 +64,7 @@ export function WardCoverageMatrixPage() {
       <details><summary>Assigned staff and breaks</summary>
         <ul>{staff.map(person => <li key={person.id}>{person.name} · {person.skill} · break {person.breakStart}:00–{person.breakEnd}:00
           {candidateAssignments.some(item => item.id === person.id) && <button onClick={() => { remove(person.id) }}>Remove {person.id}</button>}
+          {person.id === 'RN-4' && <button onClick={() => { reviewCredential(person.id, person.credentialUntil < shiftDate ? '2026-12-31' : '2026-09-13') }}>Review RN-4 credential</button>}
         </li>)}</ul>
       </details>
     </section>
