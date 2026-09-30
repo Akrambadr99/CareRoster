@@ -83,7 +83,7 @@ describe('selected shift persistence', () => {
     const storage = new MemoryStorage(), bound = openSelectedRecord(storage)
     const changed = edit(readShiftLedger(bound))
     storage.fail = true
-    expect(() => saveShiftLedger(bound, changed)).toThrow('Storage full')
+    expect(() => saveShiftLedger(bound, changed)).toThrow('Browser storage rejected the save')
     storage.fail = false
     saveShiftLedger(bound, changed)
     expect(readShiftLedger(openSelectedRecord(storage))).toEqual(changed)

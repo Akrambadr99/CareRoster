@@ -1,3 +1,5 @@
+import { readStored, writeStored } from '../../workspace/storageValidation'
+import { shiftCollectionRule } from './collectionValidation'
 import type { StoragePort } from '../../workspace/repository'
 import { candidateAssignments } from './coverage'
 import { assignStaff, changeCredential, initialShiftLedger, readShiftLedger, requestTransferReview } from './shiftLedger'
@@ -31,15 +33,11 @@ export function seedShiftCollection(legacy: ShiftLedger = initialShiftLedger): S
   ], audit: [] }
 }
 export function readShiftCollection(storage: StoragePort): ShiftCollection {
-  const raw = storage.getItem(key)
-  if (!raw) return seedShiftCollection(readShiftLedger(storage))
-  const value: unknown = JSON.parse(raw)
-  if (!value || typeof value !== 'object' || !('shifts' in value) || !Array.isArray(value.shifts) ||
-    !('credentials' in value) || !Array.isArray(value.credentials) || !('audit' in value) || !Array.isArray(value.audit))
-    throw new Error('Invalid shift collection.')
-  return value as ShiftCollection
+  return readStored(storage, key, shiftCollectionRule, () => seedShiftCollection(readShiftLedger(storage)), 'careroster:ward-icu:night:2026-09-14:v1')
 }
-export function saveShiftCollection(storage: StoragePort, value: ShiftCollection): ShiftCollection { storage.setItem(key, JSON.stringify(value)); return value }
+export function saveShiftCollection(storage: StoragePort, value: ShiftCollection): ShiftCollection {
+  return writeStored(storage, key, shiftCollectionRule, value)
+}
 export function shiftById(value: ShiftCollection, id: string): ShiftRecord {
   const record = value.shifts.find(item => item.id === id)
   if (!record) throw new Error(`Shift ${id} was not found.`)
