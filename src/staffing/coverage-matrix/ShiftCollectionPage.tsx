@@ -1,3 +1,7 @@
+import { useCollectionExplorer } from '../../workspace/useCollectionExplorer'
+import { ExplorerControls, ExplorerPagination, ExplorerSelection } from '../../workspace/CollectionExplorerControls'
+import { withCollectionView } from '../../workspace/collectionExplorer'
+import { shiftTriage } from './collectionTriage'
 import { recordDetailPath, recordDecisionPath } from './recordLinks'
 import { Link } from 'react-router-dom'
 import { saveCurrentCollection } from '../../workspace/recordStorage'
@@ -5,12 +9,12 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { careCoordinators } from './clinicalWorkload'
 import { archiveShift, claimShiftTransfer, readShiftCollection, requestShiftTransfers, reviseCredential,
-  saveShiftCollection, shiftInbox, shiftRows } from './shiftCollection'
+  saveShiftCollection, shiftInbox } from './shiftCollection'
 
 export function ShiftCollectionPage() {
   const [collection, setCollection] = useState(() => readShiftCollection(window.localStorage))
   const [params, setParams] = useSearchParams()
-  const [query, setQuery] = useState(''); const [filter, setFilter] = useState('active')
+  const explorer = useCollectionExplorer(collection.shifts, shiftTriage)
   const [lead, setLead] = useState('lead-mira'); const [checked, setChecked] = useState<string[]>([])
   const [notice, setNotice] = useState('')
   const selectedId = params.get('shift') ?? 'ICU-NIGHT-15'; const selected = collection.shifts.find(item => item.id === selectedId)
@@ -27,6 +31,7 @@ export function ShiftCollectionPage() {
       <article><small>Shared credentials</small><strong>{collection.credentials.length}</strong></article>
     </section>
     <section className="suite-card" aria-label="Clinical queue"><h2>Clinical work queue</h2>
+      <p>All active clinical work. Collection filters below do not limit this queue.</p>
       {shiftInbox(collection).length ? <ul>{shiftInbox(collection).map(item => <li key={item.shiftId + item.id}>
         <button onClick={() => { choose(item.shiftId) }}>{item.shiftId}</button> · {item.ward} · {item.kind} ·
         {item.assigneeId ?? 'team queue'} · {item.status}</li>)}</ul> : <p>No active clinical work.</p>}
@@ -34,16 +39,17 @@ export function ShiftCollectionPage() {
         {careCoordinators.filter(item => item.role === 'clinical lead').map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
     </section>
     <section className="suite-card" aria-label="Shift collection"><h2>Ward shifts</h2>
-      <label>Search shifts <input value={query} onChange={event => { setQuery(event.target.value) }} /></label>
-      <label>Show <select value={filter} onChange={event => { setFilter(event.target.value) }}><option value="active">Active</option>
-        <option value="archived">Archived</option><option value="all">All</option></select></label>
-      {shiftRows(collection, query, filter).length ? <ul>{shiftRows(collection, query, filter).map(record => <li key={record.id}>
+      <ExplorerControls noun="shifts" view={explorer.view} onChange={explorer.setView} states={shiftTriage.states} onReset={explorer.reset} />
+      <ExplorerSelection selected={checked} visible={explorer.rows.map(record => record.id)} onChange={setChecked} />
+      {explorer.rows.length ? <ul>{explorer.rows.map(record => <li key={record.id}>
         <label><input type="checkbox" checked={checked.includes(record.id)} onChange={event => {
           setChecked(current => event.target.checked ? [...current, record.id] : current.filter(id => id !== record.id))
         }} /> Select {record.id}</label>
         <button aria-current={selectedId === record.id ? 'true' : undefined} onClick={() => { choose(record.id) }}>
           {record.id} · {record.ward}</button> · roster r{record.ledger.revision} · {record.ledger.staff.length} staff
-        {record.archived ? ' · archived' : ''}</li>)}</ul> : <p>No shifts match this view.</p>}
+        {record.archived ? ' · archived' : ''} · {shiftTriage.states.find(state => state.value === shiftTriage.state(record))?.label}</li>)}</ul> : <div className="collection-empty"><p>No shifts match this view. Adjust the filters or reset the view; your selected record is preserved.</p><button onClick={explorer.reset}>Reset empty view</button></div>}
+      <ExplorerPagination page={explorer.page} pageCount={explorer.pageCount} matchingCount={explorer.matchingCount} onPageChange={page => { explorer.setView({ page }) }} />
+      {selected && !explorer.rows.some(record => record.id === selected.id) && <p className="collection-context">Selected {selected.id} is outside the current page or filters. Its details remain open.</p>}
       <button disabled={!checked.length} onClick={() => { const result = requestShiftTransfers(collection, checked)
         persist(result.collection, `${String(result.updated.length)} requested; ${String(result.skipped.length)} skipped; ${String(result.blocked.length)} blocked.`)
       }}>Request selected transfer reviews</button>
@@ -63,7 +69,7 @@ export function ShiftCollectionPage() {
     </>}</section>
     <section className="suite-card" aria-label="Shift audit"><h2>Collection audit</h2><ol>{collection.audit.toReversed().slice(0, 8).map((item, index) =>
       <li key={index}>{item.action} · {item.id} · {item.related.join(', ') || 'none'}</li>)}</ol></section>
-    <nav aria-label="Selected record workflows">{selected && !selected.archived && <><Link to={recordDetailPath(selected)}>Open record details</Link>{' · '}<Link to={recordDecisionPath(selected)}>Open decision workflow</Link></>} <button onClick={() => { try { setCollection(readShiftCollection(window.localStorage)); setNotice('Workspace refreshed; selection preserved.') } catch (error) { setNotice(error instanceof Error ? error.message : 'Refresh failed.') } }}>Refresh workspace</button></nav>
+    <nav aria-label="Selected record workflows">{selected && !selected.archived && <><Link to={withCollectionView(recordDetailPath(selected), params)}>Open record details</Link>{' · '}<Link to={withCollectionView(recordDecisionPath(selected), params)}>Open decision workflow</Link></>} <button onClick={() => { try { setCollection(readShiftCollection(window.localStorage)); setNotice('Workspace refreshed; selection preserved.') } catch (error) { setNotice(error instanceof Error ? error.message : 'Refresh failed.') } }}>Refresh workspace</button></nav>
     <p role="status">{notice}</p>
   </main>
 }
