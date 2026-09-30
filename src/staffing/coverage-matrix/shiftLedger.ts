@@ -1,4 +1,4 @@
-import type { StoragePort } from '../../workspace/repository'
+import type { StoragePort, StorageReader } from '../../platform/storage-port'
 import { assignmentFinding, assignments, coverageGaps } from './coverage'
 import type { StaffAssignment } from './coverage'
 
@@ -33,7 +33,7 @@ export interface CredentialWork {
 }
 const key = 'careroster:ward-icu:night:2026-09-14:v1'
 export const initialShiftLedger: ShiftLedger = { staff: assignments, transferApproved: false, transferSourceRevision: null, rosterOwner: 'roster coordinator', transferReviewer: null, transferReviews: [], credentialWork: [], revision: 0, history: [] }
-export function readShiftLedger(storage: StoragePort): ShiftLedger {
+export function readShiftLedger(storage: StorageReader): ShiftLedger {
   const raw = storage.getItem(key)
   if (!raw) return initialShiftLedger
   const value: unknown = JSON.parse(raw)

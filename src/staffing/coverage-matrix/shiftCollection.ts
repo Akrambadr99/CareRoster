@@ -1,6 +1,6 @@
 import { readStored, writeStored } from '../../workspace/storageValidation'
 import { shiftCollectionRule } from './collectionValidation'
-import type { StoragePort } from '../../workspace/repository'
+import type { StoragePort, StorageReader } from '../../platform/storage-port'
 import { candidateAssignments } from './coverage'
 import { assignStaff, changeCredential, initialShiftLedger, readShiftLedger, requestTransferReview } from './shiftLedger'
 import type { ShiftLedger } from './shiftLedger'
@@ -32,7 +32,7 @@ export function seedShiftCollection(legacy: ShiftLedger = initialShiftLedger): S
     { id: 'ED-RN-2', revision: 1, until: '2026-12-31', shiftIds: ['ED-NIGHT-15', 'ED-DAY-16'] },
   ], audit: [] }
 }
-export function readShiftCollection(storage: StoragePort): ShiftCollection {
+export function readShiftCollection(storage: StorageReader): ShiftCollection {
   return readStored(storage, key, shiftCollectionRule, () => seedShiftCollection(readShiftLedger(storage)), 'careroster:ward-icu:night:2026-09-14:v1')
 }
 export function saveShiftCollection(storage: StoragePort, value: ShiftCollection): ShiftCollection {
