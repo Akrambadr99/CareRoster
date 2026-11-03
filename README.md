@@ -29,6 +29,30 @@ This project belongs to a related operations-application portfolio and shares fo
 - Bed-state synchronization
 - Escalation policy version
 
+## AI code evaluation and regression engineering
+
+I use CareRoster to evaluate and correct AI-generated JavaScript and TypeScript code through concrete bugs and executable tests. My work includes implementing staffing rules, tracing dependencies between coverage and transfer approval, reviewing proposed fixes, and designing regression cases for benchmark-style debugging tasks.
+
+The evaluation focus is whether a patch handles boundary conditions and changing credentials while preserving valid assignments, review authority, and saved work.
+
+| Engineering focus | Published test evidence |
+| --- | --- |
+| Resource-specific shift conflicts, touching intervals, and invalid intervals | [Shift-overlap tests](src/staffing/coverage-matrix/shift-overlap.test.ts) |
+| Persisted qualified coverage, protected approved rosters, and stale approval after credential expiry | [Shift-ledger regression tests](src/staffing/coverage-matrix/shiftLedger.test.ts) |
+| Non-destructive recovery, keyboard focus, scoped recovery downloads, and separation of storage corruption from missing records | [Workflow recovery tests](src/workspace/WorkflowRecovery.test.tsx) |
+
+### Reproduce and review a change
+
+After the setup below, run focused tests and the broader checks defined in [package.json](package.json):
+
+```bash
+npm test -- src/staffing/coverage-matrix/shift-overlap.test.ts src/staffing/coverage-matrix/shiftLedger.test.ts src/workspace/WorkflowRecovery.test.tsx
+npm run check
+npm run test:e2e
+```
+
+`npm run check` includes the architecture tests and architecture check, linting, unit/component tests, type checking, and the application build. In code review, I check that fixes preserve valid workflows, reject stale or invalid operations, and retain users' saved data when recovery is needed.
+
 ## Getting started
 
 Node.js requirement: `>=20.19 <21`. Use the package manager specified in [package.json](package.json).
